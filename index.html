@@ -535,8 +535,14 @@
       <button class="btn primary" data-action="dish-add">＋ 料理を追加</button>
 
       <div class="admin-h">配布（全端末への反映）</div>
-      <button class="btn primary" data-action="export-final">📦 完成版HTMLを書き出す</button>
-      <div class="hint-note">写真・動画・テキストをすべて埋め込んだ配布用ファイルを1つ作ります。GitHub等に置けば、iPad・iPhone・PCは同じURLを開くだけで最新の内容になります。ファイルを直接送って開いてもらう形でもOKです。</div>
+      <button class="btn primary" data-action="gh-publish">🚀 GitHubに公開（1クリックで全端末に反映）</button>
+      <button class="btn secondary" data-action="export-final">📦 完成版HTMLを書き出す（手動配布用）</button>
+      <div class="hint-note">🚀ボタンを押すと、現在の内容（写真・動画込み）がGitHubに自動アップロードされ、約1分で全端末に反映されます。初回のみ下の「GitHub接続設定」が必要です。</div>
+
+      <div class="admin-h">GitHub接続設定（初回のみ）</div>
+      <div class="field"><label>アクセストークン</label><input type="password" id="gh-token" placeholder="github_pat_... を貼り付け" autocomplete="off"></div>
+      <button class="btn secondary" data-action="gh-save">接続設定を保存</button>
+      <div class="hint-note" id="gh-status">未設定</div>
 
       <div class="admin-h">データの保護</div>
       <button class="btn secondary" data-action="backup-export">📤 バックアップを書き出す</button>
@@ -1291,6 +1297,11 @@ $('header-title').addEventListener('click', async () => {
    管理：料理一覧
 ============================================================ */
 function renderAdmin() {
+  const cfg = ghConfig();
+  $('gh-token').value = cfg.token;
+  $('gh-status').textContent = cfg.token
+    ? `✅ 設定済み（公開先: ${cfg.owner}/${cfg.repo}）`
+    : '未設定：GitHubで発行したアクセストークンを貼り付けて保存してください';
   $('admin-dish-list').innerHTML = DATA.dishes.map((d, i) => `
     <div class="row">
       <div class="row-main" data-action="dish-edit" data-id="${esc(d.id)}">
@@ -1525,6 +1536,110 @@ async function exportFinal() {
   }
 }
 
+/* ============================================================
+   GitHubに公開（1クリック反映）
+============================================================ */
+const LS_GH = 'kotatsu_gh';
+function ghConfig() {
+  let c = {};
+  try { c = JSON.parse(localStorage.getItem(LS_GH)) || {}; } catch (e) {}
+  return Object.assign({ owner: 'assaji1971', repo: 'kotatsu-manual', branch: 'main', token: '' }, c);
+}
+
+async function ghApi(path, opts, token) {
+  return fetch('https://api.github.com' + path, Object.assign({}, opts, {
+    headers: Object.assign({
+      'Authorization': 'Bearer ' + token,
+      'Accept': 'application/vnd.github+json',
+      'X-GitHub-Api-Version': '2022-11-28',
+    }, (opts && opts.headers) || {}),
+  }));
+}
+
+async function ghSaveToken() {
+  const token = $('gh-token').value.trim();
+  if (!token) { alert('トークンを入力してください'); return; }
+  const cfg = ghConfig();
+  showToast('接続を確認中…');
+  try {
+    const r = await ghApi(`/repos/${cfg.owner}/${cfg.repo}`, {}, token);
+    if (r.status === 401) { alert('トークンが無効です。コピーミスがないか確認してください'); return; }
+    if (r.status === 404) { alert('リポジトリにアクセスできません。トークン発行時に「kotatsu-manual」を選んだか確認してください'); return; }
+    if (!r.ok) { alert('接続確認に失敗しました（' + r.status + '）'); return; }
+    cfg.token = token;
+    localStorage.setItem(LS_GH, JSON.stringify(cfg));
+    renderAdmin();
+    showToast('✅ GitHubと接続できました');
+  } catch (e) {
+    alert('接続できませんでした。インターネット接続を確認してください');
+  }
+}
+
+function blobToB64Raw(blob) {
+  return blobToB64(blob).then(d => String(d).split(',')[1]);
+}
+
+async function publishToGitHub() {
+  const cfg = ghConfig();
+  if (!cfg.token) {
+    alert('初回設定が必要です。下の「GitHub接続設定」にトークンを貼り付けて保存してください');
+    return;
+  }
+  // 安全装置：1日1回、公開前に自動バックアップをダウンロード
+  const last = parseInt(localStorage.getItem('kotatsu_last_autobackup') || '0', 10);
+  if (Date.now() - last > 24 * 60 * 60 * 1000) {
+    try {
+      await exportBackup();
+      localStorage.setItem('kotatsu_last_autobackup', String(Date.now()));
+    } catch (e) {}
+  }
+  try {
+    showToast('完成版を作成中…');
+    const keys = await mediaAllKeys();
+    const media = [];
+    let total = 0;
+    for (const k of keys) {
+      const blob = await mediaGet(k);
+      if (blob) { total += blob.size; media.push({ id: k, b64: await blobToB64(blob) }); }
+    }
+    if (total > 40 * 1024 * 1024 &&
+        !confirm('写真・動画の合計が40MBを超えています。アップロードに失敗する可能性があります。続けますか？（動画をYouTube方式にすると軽くなります）')) return;
+
+    const out = buildFinalHtml({ exportedAt: new Date().toISOString(), data: DATA, media });
+    if (!out) { alert('完成版の作成に失敗しました'); return; }
+
+    showToast('GitHubへアップロード中…');
+    // 既存index.htmlのsha取得（Tree APIはファイルサイズ制限なし）
+    let sha = null;
+    const tr = await ghApi(`/repos/${cfg.owner}/${cfg.repo}/git/trees/${cfg.branch}`, {}, cfg.token);
+    if (tr.ok) {
+      const tree = await tr.json();
+      const f = (tree.tree || []).find(x => x.path === 'index.html');
+      if (f) sha = f.sha;
+    } else if (tr.status === 401) {
+      alert('トークンが無効か期限切れです。GitHub接続設定でトークンを再設定してください');
+      return;
+    }
+
+    const content = await blobToB64Raw(new Blob([out], { type: 'text/html' }));
+    const body = { message: '虎龍マニュアル更新 ' + new Date().toLocaleString('ja-JP'), content, branch: cfg.branch };
+    if (sha) body.sha = sha;
+    const put = await ghApi(`/repos/${cfg.owner}/${cfg.repo}/contents/index.html`, {
+      method: 'PUT',
+      body: JSON.stringify(body),
+    }, cfg.token);
+    if (!put.ok) {
+      if (put.status === 401) alert('トークンが無効か期限切れです。GitHub接続設定で再設定してください');
+      else if (put.status === 409) alert('競合が発生しました。もう一度🚀ボタンを押してください');
+      else alert('アップロードに失敗しました（' + put.status + '）。もう一度お試しください');
+      return;
+    }
+    showToast('🚀 公開しました！約1分で全端末に反映されます');
+  } catch (e) {
+    alert('公開に失敗しました：' + e.message);
+  }
+}
+
 /* ---- 完成版起動時：埋め込みデータを取り込む ---- */
 async function applyEmbedded() {
   if (!EMBEDDED || !EMBEDDED.data) return;
@@ -1687,6 +1802,8 @@ document.addEventListener('click', async e => {
     }
 
     /* ---- 管理：その他 ---- */
+    case 'gh-publish': publishToGitHub(); break;
+    case 'gh-save': ghSaveToken(); break;
     case 'export-final': exportFinal(); break;
     case 'backup-export': exportBackup(); break;
     case 'backup-import': $('file-import').click(); break;
