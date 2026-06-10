@@ -1,0 +1,1826 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+
+  <!-- iOS PWA -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="虎龍マニュアル">
+
+  <title>虎龍 調理マニュアル</title>
+
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+    :root {
+      --red:       #8B1A1A;
+      --red-mid:   #B71C1C;
+      --bg:        #F5F2EE;
+      --white:     #FFFFFF;
+      --text:      #1A1A1A;
+      --sub:       #777777;
+      --border:    #E2DDD8;
+      --tip-bg:    #FFF8E1;
+      --tip-left:  #F59E0B;
+      --warn-bg:   #FFF0F0;
+      --warn-left: #E53935;
+      --photo-bg:  #DDD8D2;
+      --video-bg:  #C8C3BC;
+      --green:     #2E7D32;
+      --shadow:    0 2px 10px rgba(0,0,0,0.10);
+      --radius:    14px;
+      --hh:        62px;
+    }
+
+    html, body { height: 100%; overscroll-behavior: none; }
+    body {
+      font-family: -apple-system, 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Helvetica Neue', Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      overflow: hidden;
+    }
+
+    .app {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      height: 100dvh;
+    }
+
+    /* ========== HEADER ========== */
+    .header {
+      background: var(--red);
+      color: #fff;
+      display: flex;
+      align-items: center;
+      padding: 0 14px;
+      gap: 10px;
+      flex-shrink: 0;
+      padding-top: env(safe-area-inset-top, 0px);
+      height: calc(var(--hh) + env(safe-area-inset-top, 0px));
+      z-index: 10;
+    }
+
+    .btn-back {
+      background: rgba(255,255,255,0.18);
+      border: none;
+      border-radius: 10px;
+      color: #fff;
+      font-size: 22px;
+      width: 48px;
+      height: 48px;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+    .btn-back.visible { display: flex; }
+
+    .header-text { flex: 1; min-width: 0; }
+    .header-title {
+      font-size: 18px;
+      font-weight: 700;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      letter-spacing: 0.3px;
+    }
+    .header-sub { font-size: 12px; opacity: 0.78; margin-top: 1px; }
+
+    .badge-edit {
+      display: none;
+      background: #FFB300;
+      color: #4A2C00;
+      font-size: 12px;
+      font-weight: 800;
+      padding: 5px 10px;
+      border-radius: 20px;
+      letter-spacing: 0.5px;
+      flex-shrink: 0;
+    }
+    .badge-edit.visible { display: block; }
+
+    /* ========== SCREENS ========== */
+    main { flex: 1; min-height: 0; position: relative; }
+    .screen {
+      display: none;
+      height: 100%;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      padding: 16px 14px calc(24px + env(safe-area-inset-bottom, 0px));
+    }
+    .screen.active { display: block; }
+    #screen-dish.active { display: flex; flex-direction: column; padding: 0; overflow: hidden; }
+
+    /* ========== HOME ========== */
+    .home-toolbar { display: flex; gap: 8px; margin-bottom: 12px; }
+    .search {
+      flex: 1;
+      border: 1.5px solid var(--border);
+      border-radius: 12px;
+      background: var(--white);
+      padding: 12px 14px;
+      font-size: 16px;
+      -webkit-appearance: none;
+    }
+    .search:focus { outline: 2px solid var(--red-mid); }
+    .btn-quickref {
+      background: var(--white);
+      border: 1.5px solid var(--border);
+      border-radius: 12px;
+      padding: 0 16px;
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--red);
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+
+    .tabs { display: flex; gap: 8px; overflow-x: auto; margin-bottom: 14px; padding-bottom: 2px; }
+    .tab {
+      border: 1.5px solid var(--border);
+      background: var(--white);
+      color: var(--sub);
+      border-radius: 20px;
+      padding: 8px 16px;
+      font-size: 14px;
+      font-weight: 700;
+      white-space: nowrap;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+    .tab.active { background: var(--red); border-color: var(--red); color: #fff; }
+
+    .dish-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+    .dish-card {
+      background: var(--white);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+      cursor: pointer;
+      transition: transform 0.14s;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    .dish-card:active { transform: scale(0.96); }
+
+    .dish-card-thumb {
+      height: 130px;
+      background: var(--photo-bg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 54px;
+      position: relative;
+      background-size: cover;
+      background-position: center;
+    }
+    .dish-card-badge {
+      position: absolute;
+      top: 8px; right: 8px;
+      background: var(--red);
+      color: #fff;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 4px 8px;
+      border-radius: 20px;
+    }
+    .dish-card-body { padding: 11px 13px 14px; }
+    .dish-card-cat {
+      font-size: 11px; font-weight: 700; color: var(--red-mid);
+      letter-spacing: 0.5px; margin-bottom: 5px;
+    }
+    .dish-card-name { font-size: 16px; font-weight: 800; line-height: 1.35; }
+
+    /* ========== DISH VIEW (pages) ========== */
+    .pages-track { flex: 1; min-height: 0; overflow: hidden; position: relative; }
+    .pages-inner {
+      display: flex;
+      height: 100%;
+      transition: transform 0.32s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+      will-change: transform;
+    }
+    .page {
+      min-width: 100%;
+      height: 100%;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      padding: 18px 18px 28px;
+    }
+
+    .step-num { font-size: 14px; color: var(--sub); font-weight: 700; margin-bottom: 6px; }
+    .step-title { font-size: 28px; font-weight: 900; line-height: 1.25; margin-bottom: 16px; letter-spacing: -0.3px; }
+
+    .step-photo {
+      background: var(--photo-bg);
+      border-radius: var(--radius);
+      min-height: 230px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 16px;
+      color: #999;
+      gap: 8px;
+      border: 2px dashed #C5BFBA;
+      overflow: hidden;
+    }
+    .step-photo.has-img { border: none; min-height: 0; }
+    .step-photo img { width: 100%; display: block; border-radius: var(--radius); }
+    .step-photo-label { font-size: 13px; opacity: 0.7; font-weight: 500; }
+
+    .step-video {
+      background: var(--video-bg);
+      border-radius: var(--radius);
+      margin-bottom: 6px;
+      overflow: hidden;
+    }
+    .step-video.placeholder {
+      min-height: 170px;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      color: #888; gap: 8px;
+      border: 2px dashed #B0A9A2;
+    }
+    .step-video iframe, .step-video video { width: 100%; aspect-ratio: 16/9; display: block; border: none; }
+    .video-note { font-size: 12px; color: var(--sub); margin-bottom: 14px; padding-left: 2px; }
+
+    .step-instruction {
+      font-size: 21px;
+      line-height: 1.8;
+      font-weight: 500;
+      margin-bottom: 16px;
+    }
+
+    .step-tip {
+      border-radius: 0 var(--radius) var(--radius) 0;
+      padding: 14px 16px;
+      margin-bottom: 14px;
+      border-left: 5px solid;
+    }
+    .step-tip.point { background: var(--tip-bg); border-color: var(--tip-left); }
+    .step-tip.warn  { background: var(--warn-bg); border-color: var(--warn-left); }
+    .step-tip-label { font-size: 13px; font-weight: 800; letter-spacing: 0.6px; margin-bottom: 6px; }
+    .step-tip.point .step-tip-label { color: #92600A; }
+    .step-tip.warn  .step-tip-label { color: #C62828; }
+    .step-tip-text { font-size: 17px; line-height: 1.65; }
+    .step-tip.point .step-tip-text { color: #5D4037; }
+    .step-tip.warn  .step-tip-text { color: #7F1D1D; }
+
+    /* ---- overview page ---- */
+    .ov-section { margin-bottom: 20px; }
+    .ov-h { font-size: 16px; font-weight: 800; color: var(--red); margin-bottom: 10px; }
+    .ov-table { width: 100%; border-collapse: collapse; background: var(--white); border-radius: 12px; overflow: hidden; box-shadow: var(--shadow); }
+    .ov-table td { padding: 12px 14px; font-size: 17px; border-bottom: 1px solid var(--border); }
+    .ov-table tr:last-child td { border-bottom: none; }
+    .ov-table td.amt { text-align: right; font-weight: 700; white-space: nowrap; }
+    .ov-empty { font-size: 14px; color: var(--sub); background: var(--white); border-radius: 12px; padding: 14px; }
+    .ov-meta { font-size: 15px; color: var(--sub); margin-bottom: 14px; line-height: 1.6; }
+
+    .toc-item {
+      display: flex; align-items: center; gap: 12px;
+      background: var(--white);
+      border-radius: 12px;
+      padding: 14px;
+      margin-bottom: 8px;
+      box-shadow: var(--shadow);
+      cursor: pointer;
+      font-size: 17px;
+      font-weight: 600;
+    }
+    .toc-item:active { transform: scale(0.98); }
+    .toc-num {
+      background: var(--red); color: #fff;
+      width: 32px; height: 32px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 14px; font-weight: 800; flex-shrink: 0;
+    }
+
+    /* ========== NAV BAR (big buttons) ========== */
+    .dots {
+      display: flex; justify-content: center; align-items: center; gap: 7px;
+      padding: 8px 16px 4px;
+      flex-shrink: 0;
+    }
+    .dot {
+      height: 9px; width: 9px; border-radius: 5px;
+      background: var(--border);
+      transition: width 0.25s, background 0.25s;
+      cursor: pointer;
+    }
+    .dot.active { width: 26px; background: var(--red); }
+
+    .stepnav {
+      display: flex; gap: 10px;
+      padding: 8px 14px calc(12px + env(safe-area-inset-bottom, 0px));
+      background: var(--bg);
+      border-top: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .nav-btn {
+      flex: 1;
+      height: 66px;
+      border: none;
+      border-radius: 14px;
+      font-size: 19px;
+      font-weight: 800;
+      cursor: pointer;
+      font-family: inherit;
+    }
+    .nav-btn:active { opacity: 0.8; }
+    .nav-btn.prev { background: var(--white); color: var(--text); border: 1.5px solid var(--border); flex: 0 0 36%; }
+    .nav-btn.prev:disabled { opacity: 0.35; }
+    .nav-btn.next { background: var(--red); color: #fff; }
+    .nav-btn.next.finish { background: var(--green); }
+
+    /* ========== QUICK REF ========== */
+    .qr-card { background: var(--white); border-radius: var(--radius); box-shadow: var(--shadow); padding: 14px 16px; margin-bottom: 10px; }
+    .qr-name { font-size: 17px; font-weight: 800; margin-bottom: 6px; }
+    .qr-memo { font-size: 16px; color: var(--red-mid); font-weight: 700; margin-bottom: 6px; }
+    .qr-warn { font-size: 14px; color: #7F1D1D; line-height: 1.55; padding-left: 14px; position: relative; margin-bottom: 4px; }
+    .qr-warn::before { content: "⚠"; position: absolute; left: 0; }
+
+    /* ========== ADMIN / FORMS ========== */
+    .admin-h { font-size: 16px; font-weight: 800; color: var(--red); margin: 18px 0 10px; }
+    .admin-h:first-child { margin-top: 0; }
+
+    .row {
+      display: flex; align-items: center; gap: 8px;
+      background: var(--white);
+      border-radius: 12px;
+      padding: 10px 12px;
+      margin-bottom: 8px;
+      box-shadow: var(--shadow);
+    }
+    .row-main { flex: 1; min-width: 0; cursor: pointer; }
+    .row-name { font-size: 16px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .row-sub { font-size: 12px; color: var(--sub); margin-top: 2px; }
+    .icon-btn {
+      width: 44px; height: 44px;
+      border: 1.5px solid var(--border);
+      background: var(--white);
+      border-radius: 10px;
+      font-size: 17px;
+      cursor: pointer;
+      flex-shrink: 0;
+      color: var(--text);
+    }
+    .icon-btn:disabled { opacity: 0.3; }
+    .icon-btn.danger { color: var(--warn-left); }
+
+    .btn {
+      display: block;
+      width: 100%;
+      border: none;
+      border-radius: 12px;
+      padding: 16px;
+      font-size: 16px;
+      font-weight: 800;
+      cursor: pointer;
+      margin-bottom: 10px;
+      font-family: inherit;
+    }
+    .btn.primary { background: var(--red); color: #fff; }
+    .btn.secondary { background: var(--white); color: var(--text); border: 1.5px solid var(--border); }
+    .btn.danger-outline { background: var(--white); color: var(--warn-left); border: 1.5px solid var(--warn-left); }
+
+    .field { margin-bottom: 14px; }
+    .field label { display: block; font-size: 13px; font-weight: 800; color: var(--sub); margin-bottom: 6px; }
+    .field input[type=text], .field input[type=url], .field textarea, .field select {
+      width: 100%;
+      border: 1.5px solid var(--border);
+      border-radius: 12px;
+      background: var(--white);
+      padding: 13px 14px;
+      font-size: 16px;
+      font-family: inherit;
+      -webkit-appearance: none;
+    }
+    .field textarea { min-height: 110px; line-height: 1.6; resize: vertical; }
+    .field input:focus, .field textarea:focus, .field select:focus { outline: 2px solid var(--red-mid); }
+
+    .ing-row { display: flex; gap: 8px; margin-bottom: 8px; align-items: center; }
+    .ing-row input { flex: 1; border: 1.5px solid var(--border); border-radius: 10px; padding: 11px 12px; font-size: 15px; background: var(--white); }
+    .ing-row input.amt { flex: 0 0 34%; }
+
+    .edit-photo-preview { margin-bottom: 10px; }
+    .edit-photo-preview img { width: 100%; border-radius: 12px; display: block; }
+
+    .hint-note {
+      background: var(--tip-bg);
+      border-left: 4px solid var(--tip-left);
+      border-radius: 0 10px 10px 0;
+      padding: 12px 14px;
+      font-size: 13px;
+      line-height: 1.6;
+      color: #5D4037;
+      margin: 14px 0;
+    }
+
+    /* ========== SETUP ========== */
+    .setup-step { background: var(--white); border-radius: var(--radius); padding: 14px 16px; margin-bottom: 10px; box-shadow: var(--shadow); }
+    .setup-step-num { font-size: 12px; font-weight: 700; color: var(--sub); margin-bottom: 4px; }
+    .setup-step-text { font-size: 15px; line-height: 1.65; font-weight: 500; }
+
+    /* ========== MODAL ========== */
+    .modal-overlay {
+      display: none;
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.45);
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+    .modal-overlay.visible { display: flex; }
+    .modal {
+      background: var(--white);
+      border-radius: 18px;
+      padding: 24px 22px;
+      width: 100%;
+      max-width: 360px;
+      text-align: center;
+    }
+    .modal-title { font-size: 17px; font-weight: 800; margin-bottom: 8px; }
+    .modal-msg { font-size: 14px; color: var(--sub); margin-bottom: 16px; line-height: 1.6; }
+    .modal input {
+      width: 100%;
+      border: 1.5px solid var(--border);
+      border-radius: 12px;
+      padding: 14px;
+      font-size: 26px;
+      text-align: center;
+      letter-spacing: 10px;
+      margin-bottom: 14px;
+      -webkit-appearance: none;
+    }
+    .modal-buttons { display: flex; gap: 10px; }
+    .modal-buttons button {
+      flex: 1; border: none; border-radius: 12px; padding: 14px;
+      font-size: 16px; font-weight: 800; cursor: pointer; font-family: inherit;
+    }
+    .modal-cancel { background: var(--bg); color: var(--text); }
+    .modal-ok { background: var(--red); color: #fff; }
+    .modal-err { color: var(--warn-left); font-size: 13px; font-weight: 700; margin-bottom: 10px; display: none; }
+
+    /* ========== TOAST ========== */
+    #toast {
+      position: fixed;
+      bottom: calc(28px + env(safe-area-inset-bottom, 0px));
+      left: 50%;
+      transform: translateX(-50%) translateY(20px);
+      background: rgba(26,26,26,0.92);
+      color: #fff;
+      font-size: 14px;
+      font-weight: 700;
+      padding: 12px 22px;
+      border-radius: 30px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.25s, transform 0.25s;
+      z-index: 200;
+      white-space: nowrap;
+    }
+    #toast.visible { opacity: 1; transform: translateX(-50%) translateY(0); }
+  </style>
+</head>
+<body>
+
+<div class="app">
+  <!-- ===== HEADER ===== -->
+  <div class="header">
+    <button class="btn-back" id="btn-back" data-action="back">&#8592;</button>
+    <div class="header-text">
+      <div class="header-title" id="header-title">虎龍 調理マニュアル</div>
+      <div class="header-sub" id="header-sub" style="display:none"></div>
+    </div>
+    <div class="badge-edit" id="badge-edit">✎ 編集中</div>
+  </div>
+
+  <main>
+    <!-- ===== HOME ===== -->
+    <section class="screen active" id="screen-home">
+      <div class="home-toolbar">
+        <input class="search" id="search" type="text" placeholder="料理名で検索" autocomplete="off">
+        <button class="btn-quickref" data-action="quickref">⚡ 早見表</button>
+      </div>
+      <div class="tabs" id="tabs"></div>
+      <div class="dish-grid" id="dish-grid"></div>
+    </section>
+
+    <!-- ===== DISH VIEW ===== -->
+    <section class="screen" id="screen-dish">
+      <div class="pages-track" id="pages-track">
+        <div class="pages-inner" id="pages-inner"></div>
+      </div>
+      <div class="dots" id="dots"></div>
+      <div class="stepnav">
+        <button class="nav-btn prev" id="nav-prev" data-action="page-prev">← 前へ</button>
+        <button class="nav-btn next" id="nav-next" data-action="page-next">次へ →</button>
+      </div>
+    </section>
+
+    <!-- ===== QUICK REF ===== -->
+    <section class="screen" id="screen-quickref">
+      <div id="quickref-body"></div>
+    </section>
+
+    <!-- ===== ADMIN HOME ===== -->
+    <section class="screen" id="screen-admin">
+      <div class="admin-h">料理の管理</div>
+      <div id="admin-dish-list"></div>
+      <button class="btn primary" data-action="dish-add">＋ 料理を追加</button>
+
+      <div class="admin-h">配布（全端末への反映）</div>
+      <button class="btn primary" data-action="export-final">📦 完成版HTMLを書き出す</button>
+      <div class="hint-note">写真・動画・テキストをすべて埋め込んだ配布用ファイルを1つ作ります。GitHub等に置けば、iPad・iPhone・PCは同じURLを開くだけで最新の内容になります。ファイルを直接送って開いてもらう形でもOKです。</div>
+
+      <div class="admin-h">データの保護</div>
+      <button class="btn secondary" data-action="backup-export">📤 バックアップを書き出す</button>
+      <button class="btn secondary" data-action="backup-import">📥 バックアップから復元</button>
+      <div class="hint-note">⚠️ iPadの故障・初期化・iOSの仕様でデータが消えることがあります。<b>内容を編集したら必ずバックアップを書き出し</b>、AirDropやメールでパソコン等に保存してください。</div>
+
+      <div class="admin-h">設定</div>
+      <button class="btn secondary" data-action="pin-change">🔑 パスコードを変更</button>
+      <button class="btn secondary" data-action="setup-guide">📱 iPad設定ガイド（キオスク化）</button>
+      <button class="btn danger-outline" data-action="data-reset">データを初期状態に戻す</button>
+    </section>
+
+    <!-- ===== EDIT DISH ===== -->
+    <section class="screen" id="screen-edit-dish">
+      <div id="edit-dish-body"></div>
+    </section>
+
+    <!-- ===== EDIT STEP ===== -->
+    <section class="screen" id="screen-edit-step">
+      <div id="edit-step-body"></div>
+    </section>
+
+    <!-- ===== SETUP GUIDE ===== -->
+    <section class="screen" id="screen-setup">
+      <div class="admin-h">📱 iPad設定ガイド（オーナー用）</div>
+      <div class="setup-step"><div class="setup-step-num">STEP 1</div><div class="setup-step-text">SafariでこのページのURL（またはファイル）を開き、画面下部の「共有」ボタン（四角から矢印が出るアイコン）をタップします。</div></div>
+      <div class="setup-step"><div class="setup-step-num">STEP 2</div><div class="setup-step-text">「ホーム画面に追加」を選び、名前を「虎龍マニュアル」のままにして「追加」をタップします。</div></div>
+      <div class="setup-step"><div class="setup-step-num">STEP 3</div><div class="setup-step-text">ホーム画面のアイコンから起動するとURLバーが消え、専用アプリとして動作します。</div></div>
+      <div class="setup-step"><div class="setup-step-num">STEP 4（アクセスガイド設定）</div><div class="setup-step-text">「設定」→「アクセシビリティ」→「アクセスガイド」→オンにして、パスコードを設定します。</div></div>
+      <div class="setup-step"><div class="setup-step-num">STEP 5</div><div class="setup-step-text">アプリを開いた状態でサイドボタンを3回押すと、アクセスガイドが起動。この画面だけに固定されます。解除はパスコードが必要です。</div></div>
+      <div class="hint-note">⚠️ アクセスガイドのパスコードはオーナーのみ管理してください。スタッフには教えないようにしましょう。</div>
+      <div class="hint-note">🧼 厨房でのiPad運用ルール：操作は手洗い前に行うか、専用タッチペンを使う。操作後に調理へ戻る時は必ず手洗い。画面は1日1回以上アルコール清拭。生肉作業区域から離して設置する。</div>
+    </section>
+  </main>
+</div>
+
+<!-- ===== MODAL ===== -->
+<div class="modal-overlay" id="modal-overlay">
+  <div class="modal">
+    <div class="modal-title" id="modal-title"></div>
+    <div class="modal-msg" id="modal-msg"></div>
+    <div class="modal-err" id="modal-err"></div>
+    <input id="modal-input" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off">
+    <div class="modal-buttons">
+      <button class="modal-cancel" id="modal-cancel">キャンセル</button>
+      <button class="modal-ok" id="modal-ok">OK</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<!-- hidden file inputs -->
+<input type="file" id="file-photo" accept="image/*" style="display:none">
+<input type="file" id="file-video" accept="video/*" style="display:none">
+<input type="file" id="file-import" accept=".json,application/json" style="display:none">
+
+<script>
+'use strict';
+
+/* ============================================================
+   配布用：起動直後のページ原本を保持（完成版書き出しに使用）
+   EMBEDDED: 完成版ファイルにはここにデータが埋め込まれる
+============================================================ */
+const SOURCE_HTML = '<!DOCTYPE html>\n' + document.documentElement.outerHTML;
+const EMBEDDED = /*__E1__*/ null /*__E2__*/;
+
+/* ============================================================
+   ユーティリティ
+============================================================ */
+const $ = id => document.getElementById(id);
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g,
+  c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const uid = () => 's' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+
+// 4桁PINの簡易ハッシュ（ローカル用途・crypto.subtle非依存）
+function pinHash(s) {
+  let h = 5381;
+  const t = 'kotatsu:' + s;
+  for (let i = 0; i < t.length; i++) { h = ((h << 5) + h + t.charCodeAt(i)) >>> 0; }
+  return 'h' + h.toString(36);
+}
+
+function showToast(msg) {
+  const t = $('toast');
+  t.textContent = msg;
+  t.classList.add('visible');
+  clearTimeout(showToast._tm);
+  showToast._tm = setTimeout(() => t.classList.remove('visible'), 1800);
+}
+
+/* ============================================================
+   初期データ（v2）
+   ※ 材料・分量は店舗のレシピに合わせて編集モードで入力してください
+============================================================ */
+function seedData() {
+  const D = (name, category, icon, quickRef, ingredients, steps) =>
+    ({ id: uid(), name, category, icon, quickRef, ingredients, steps });
+  const S = (title, instruction, tip, videoPlanned) =>
+    ({ id: uid(), title, instruction, tip: tip || null, photoId: null,
+       video: { type: 'none', url: '', mediaId: null }, videoPlanned: !!videoPlanned });
+  const P = text => ({ type: 'point', text });
+  const W = text => ({ type: 'warn', text });
+
+  return { version: 2, dishes: [
+
+    D('衛生の基本ルール', '共通ルール', '🧼',
+      '迷ったら洗う・捨てる・先輩に確認',
+      [],
+      [
+        S('手を洗うタイミング',
+          '次のタイミングでは必ず石けんで30秒以上手を洗う：作業開始時／生肉に触れた後／トイレ・休憩の後／清掃の後／iPadなど調理以外の物に触れた後。',
+          W('「ちょっとだけだから」は禁止。手洗いの省略が食中毒の最大の原因です。')),
+        S('器具は用途別に使い分ける',
+          'まな板・包丁・トングは「生肉用」と「野菜・生食用」を必ず分ける。どちらか迷う器具が出たら、使う前に洗浄・消毒する。',
+          W('生肉に使った器具を、そのままサンチュやネギに使うのは絶対禁止。')),
+        S('作業の順番：生で出すものが先',
+          '薬味・サンチュなど生のまま提供するものの準備を先に終わらせ、生肉の作業は後にする。同時進行はしない。',
+          P('順番を守るだけで、二次汚染（菌のうつり）のリスクを大きく減らせます。')),
+        S('温度と冷却の基本',
+          '冷蔵庫は4℃以下を保つ（始業時に温度を確認）。熱いものは氷水や小分けで素早く冷ましてから冷蔵庫へ。生肉を常温に置く時間は最短にする。',
+          W('※この画面の数値・ルールは店舗の衛生管理計画に合わせて、責任者と一緒に確認・修正してください。')),
+      ]),
+
+    D('本三筋の盛り付け', '肉料理', '🥩',
+      '冷蔵庫から出して提供まで最短で。常温放置しない',
+      [
+        { name: '本三筋（1人前）', amount: '※枚数を入力' },
+        { name: 'サンチュ・大葉・ネギ', amount: '所定量' },
+      ],
+      [
+        S('肉を冷蔵庫から取り出す',
+          '盛り付けの5分前に冷蔵庫（4℃以下）から取り出す。表面の余分な水分をキッチンペーパーで軽く拭き取る。盛り付け前に手洗い・手袋を確認。',
+          P('冷えたまま盛り付けると脂が白く固まり、見た目が悪くなります。取り出してから提供までは最短時間で。'), true),
+        S('盛り付け皿を拭き上げる',
+          '専用の白い皿を用意し、清潔なクロスで水分・指紋を完全に拭き上げる。皿の温度は常温が理想。'),
+        S('枚数を確認して並べる',
+          '1人前の枚数を確認してから並べ始める。皿の奥から手前に向けて、扇状に少し重ねながら置いていく。',
+          P('肉の繊維方向を揃えると、プロらしい仕上がりになります。')),
+        S('添え物を置く',
+          'サンチュ・大葉・ネギを所定の位置に添える。皿の縁に汚れや指紋がないか、最後にもう一度確認する。',
+          W('生肉に触れた手で添え物に触らない。手袋を替えるか手洗いをしてから。')),
+        S('見本と見比べて提供',
+          '厨房に貼ってある見本写真と比較する。向きはお客様から見て美しい方向に。問題なければ提供する。盛り付けに時間がかかった場合は冷蔵庫に戻すか先輩に確認。',
+          W('見本と大きく異なる場合は、先輩スタッフに確認を取ること。')),
+      ]),
+
+    D('焼肉タレの仕込み', 'タレ・仕込み', '🫙',
+      '使用期限：製造から3日。期限切れは必ず廃棄',
+      [
+        { name: '醤油', amount: '※g数を入力' },
+        { name: 'みりん', amount: '※g数を入力' },
+        { name: '砂糖', amount: '※g数を入力' },
+        { name: 'にんにく（すりおろし）', amount: '※量を入力' },
+        { name: '玉ねぎ（みじん切り）', amount: '※量を入力' },
+      ],
+      [
+        S('材料をすべて揃える',
+          '材料表を見ながら、必要な材料をすべてカウンターに並べる。一つでも欠けている場合は担当者に報告する。',
+          W('材料確認を省略しないこと。途中で材料が足りなくなると品質が変わります。')),
+        S('野菜の下処理',
+          'にんにくは皮をむいてすりおろす。玉ねぎは細かいみじん切りにし、キッチンペーパーで余分な水分を絞る。',
+          null, true),
+        S('ベースを計量・合わせる',
+          '醤油・みりん・砂糖をグラムスケールで正確に計量し、砂糖が完全に溶けるまでよく混ぜる。',
+          W('目分量は絶対に禁止。毎回同じ味を出すために計量は厳守。')),
+        S('全材料を混ぜて味確認',
+          '下処理した野菜と残りの材料を加え、全体をよく混ぜる。味見用の清潔なスプーンで味見して、基準の味と比べる。スプーンの二度漬けは禁止。',
+          P('味の基準がわからない場合は迷わず先輩に確認してください。')),
+        S('容器に移してラベルを貼る',
+          '専用の保存容器に移す。製造日時と使用期限（3日後）を記入したラベルを貼り、冷蔵庫（4℃以下）の所定位置に保管する。',
+          W('期限切れのタレは必ず廃棄。使いまわし厳禁。')),
+      ]),
+
+    D('薬味セットの準備', '副菜・付け合わせ', '🌿',
+      '生で提供するもの。生肉の作業より先に準備する',
+      [
+        { name: 'サンチュ', amount: '※量を入力' },
+        { name: '小ねぎ', amount: '※量を入力' },
+        { name: 'にんにく', amount: '※量を入力' },
+      ],
+      [
+        S('作業前の確認',
+          '生のまま提供するセットなので、必ず生肉の作業より先に行う。手洗いを済ませ、野菜・生食用（緑）のまな板と包丁を使う。',
+          W('生肉用（赤）の器具と絶対に混ぜない。')),
+        S('サンチュを洗って整える',
+          'サンチュを1枚ずつはがし、流水でよく洗う。虫・傷みがないか確認。水気を切り、所定のサイズに整える。',
+          P('洗い方が甘いとお客様にご迷惑がかかります。丁寧に洗うこと。')),
+        S('小ねぎを切る',
+          '小ねぎの根元を切り落とし、3mm幅の小口切りにする。切った後、水に1〜2分さらして辛みを抜き、水気をよく切る。',
+          null, true),
+        S('にんにくを薄切りにする',
+          'にんにく1片ずつ皮をむき、1〜2mm厚の薄切りにする。変色・傷みのあるものは取り除く。',
+          P('厚みが不均一だとお客様が焼きにくくなります。なるべく揃えること。')),
+        S('盛り付けて完成',
+          '専用の小皿に、サンチュ・ネギ・にんにくを所定の配置で盛り付ける。厨房の見本写真と比較して確認する。すぐ提供しない分は冷蔵庫へ。'),
+      ]),
+
+    D('スープの仕込み', 'タレ・仕込み', '🍲',
+      '使用期限：製造から2日。冷却は素早く（30分以内に20℃目安）',
+      [
+        { name: '水', amount: '※量を入力' },
+        { name: '昆布', amount: '※量を入力' },
+        { name: '調味料', amount: '※レシピを入力' },
+      ],
+      [
+        S('昆布をだしにかける',
+          '鍋に水を入れ、昆布を入れて30分以上浸す。その後、弱火でゆっくり加熱する。',
+          W('絶対に沸騰させないこと。沸騰すると昆布のぬめりと苦みが出ます。')),
+        S('昆布を取り出して仕上げる',
+          '小さな泡が立ち始めたら昆布を取り出す。中火にして調味料を加え、アクが出たらこまめに取り除く。'),
+        S('味の確認',
+          '味見用の清潔なスプーンで味見をして基準と比較。薄い場合は少量の塩で調整。濃い場合は水を少量足す。',
+          P('味の調整は少しずつ。一度に加えすぎないこと。')),
+        S('素早く冷まして保管する',
+          '鍋ごと氷水に当てる・小分けにする等で素早く冷ます（目安：30分以内に20℃付近→冷蔵で10℃以下へ）。専用容器に移し、製造日時と使用期限（2日後）のラベルを貼って冷蔵保管する。',
+          W('熱いまま冷蔵庫に入れると庫内温度が上がり、他の食材に影響します。「自然に冷めるまで常温放置」も菌が増えるので禁止。')),
+      ]),
+
+    D('石焼きビビンバ', 'ご飯もの', '🍳',
+      'やけど注意。提供時は「熱いのでお気をつけください」',
+      [
+        { name: 'ご飯', amount: '約200g' },
+        { name: 'ナムル（ほうれん草・もやし・にんじん・ゼンマイ）', amount: '各所定量' },
+        { name: '卵黄', amount: '1個' },
+        { name: 'ごま油・コチュジャン', amount: '所定量' },
+      ],
+      [
+        S('石鍋を十分に予熱する',
+          '石鍋をコンロに置き、中火で3〜4分予熱する。鍋の縁から煙が出てきたら適温のサイン。',
+          P('十分に熱しないとおこげができません。焦らずしっかり予熱すること。')),
+        S('ごま油を塗る',
+          'トングでキッチンペーパーをつかみ、ごま油を含ませて石鍋の内側全体に薄く塗り広げる。',
+          W('やけどに注意。石鍋は非常に熱くなっています。素手で触れないこと。'), true),
+        S('ご飯を入れておこげを作る',
+          '所定量のご飯（約200g）を石鍋に入れ、軽く広げる。強火にして底面のおこげを1分ほど作る。',
+          P('パチパチと音が聞こえたらおこげができているサインです。')),
+        S('ナムルを色よく配置する',
+          'ご飯の上に、ほうれん草・もやし・にんじん・ゼンマイを色を意識して時計回りに配置する。各ナムルが均等な量になるよう確認する。'),
+        S('仕上げて素早く提供する',
+          '中央に卵黄（冷蔵保管・ひび割れ卵は使わない）を置き、コチュジャンを小さな器で添える。熱い状態のまま素早くお客様へ提供する。',
+          W('提供時に「熱いのでお気をつけください」と必ず一言添える。')),
+      ]),
+  ]};
+}
+
+/* ============================================================
+   データ層（テキスト: localStorage / 写真・動画: IndexedDB）
+============================================================ */
+const LS_DATA = 'kotatsu_data_v2';
+const LS_PIN = 'kotatsu_pin';
+
+let DATA = null;
+
+function normalize(d) {
+  if (!d || !Array.isArray(d.dishes)) return null;
+  d.version = 2;
+  d.dishes.forEach(dish => {
+    dish.id = dish.id || uid();
+    dish.name = dish.name || '名称未設定';
+    dish.category = dish.category || '未分類';
+    dish.icon = dish.icon || '🍽';
+    dish.quickRef = dish.quickRef || '';
+    dish.finishedPhotoId = dish.finishedPhotoId || null;
+    dish.ingredients = Array.isArray(dish.ingredients) ? dish.ingredients : [];
+    dish.steps = Array.isArray(dish.steps) ? dish.steps : [];
+    dish.steps.forEach(s => {
+      s.id = s.id || uid();
+      s.title = s.title || '';
+      s.instruction = s.instruction || '';
+      s.tip = (s.tip && s.tip.text) ? { type: s.tip.type === 'warn' ? 'warn' : 'point', text: s.tip.text } : null;
+      s.photoId = s.photoId || null;
+      s.video = s.video && s.video.type ? s.video : { type: 'none', url: '', mediaId: null };
+      s.videoPlanned = !!s.videoPlanned;
+    });
+  });
+  return d;
+}
+
+function loadData() {
+  try {
+    const raw = localStorage.getItem(LS_DATA);
+    if (raw) DATA = normalize(JSON.parse(raw));
+  } catch (e) { DATA = null; }
+  if (!DATA) { DATA = seedData(); saveData(); }
+}
+
+let saveTimer = null;
+function saveData(immediate) {
+  const doSave = () => {
+    try {
+      localStorage.setItem(LS_DATA, JSON.stringify(DATA));
+    } catch (e) {
+      alert('保存に失敗しました。iPadの空き容量を確認し、バックアップを書き出してください。');
+    }
+  };
+  if (immediate) { clearTimeout(saveTimer); doSave(); return; }
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => { doSave(); showToast('保存しました'); }, 500);
+}
+
+/* ---- IndexedDB（写真・動画） ---- */
+let _db = null;
+function idb() {
+  return new Promise((res, rej) => {
+    if (_db) return res(_db);
+    const req = indexedDB.open('kotatsu_media', 1);
+    req.onupgradeneeded = () => req.result.createObjectStore('m');
+    req.onsuccess = () => { _db = req.result; res(_db); };
+    req.onerror = () => rej(req.error);
+  });
+}
+async function mediaPut(id, blob) {
+  const db = await idb();
+  return new Promise((res, rej) => {
+    const tx = db.transaction('m', 'readwrite');
+    tx.objectStore('m').put(blob, id);
+    tx.oncomplete = res; tx.onerror = () => rej(tx.error);
+  });
+}
+async function mediaGet(id) {
+  const db = await idb();
+  return new Promise((res, rej) => {
+    const r = db.transaction('m').objectStore('m').get(id);
+    r.onsuccess = () => res(r.result || null); r.onerror = () => rej(r.error);
+  });
+}
+async function mediaDel(id) {
+  if (!id) return;
+  const db = await idb();
+  return new Promise((res) => {
+    const tx = db.transaction('m', 'readwrite');
+    tx.objectStore('m').delete(id);
+    tx.oncomplete = res; tx.onerror = res;
+  });
+}
+async function mediaClear() {
+  const db = await idb();
+  return new Promise((res) => {
+    const tx = db.transaction('m', 'readwrite');
+    tx.objectStore('m').clear();
+    tx.oncomplete = res; tx.onerror = res;
+  });
+}
+async function mediaAllKeys() {
+  const db = await idb();
+  return new Promise((res, rej) => {
+    const r = db.transaction('m').objectStore('m').getAllKeys();
+    r.onsuccess = () => res(r.result || []); r.onerror = () => rej(r.error);
+  });
+}
+
+// objectURL キャッシュ
+const urlCache = new Map();
+async function mediaURL(id) {
+  if (!id) return null;
+  if (urlCache.has(id)) return urlCache.get(id);
+  const blob = await mediaGet(id);
+  if (!blob) return null;
+  const u = URL.createObjectURL(blob);
+  urlCache.set(id, u);
+  return u;
+}
+function dropURL(id) {
+  if (urlCache.has(id)) { URL.revokeObjectURL(urlCache.get(id)); urlCache.delete(id); }
+}
+
+/* ---- 写真圧縮（カメラロール → 縮小JPEG） ---- */
+function compressImage(file, maxDim, quality) {
+  return new Promise((res, rej) => {
+    const img = new Image();
+    const u = URL.createObjectURL(file);
+    img.onload = () => {
+      const scale = Math.min(1, maxDim / Math.max(img.naturalWidth, img.naturalHeight));
+      const w = Math.round(img.naturalWidth * scale);
+      const h = Math.round(img.naturalHeight * scale);
+      const cv = document.createElement('canvas');
+      cv.width = w; cv.height = h;
+      cv.getContext('2d').drawImage(img, 0, 0, w, h);
+      URL.revokeObjectURL(u);
+      cv.toBlob(b => b ? res(b) : rej(new Error('compress failed')), 'image/jpeg', quality);
+    };
+    img.onerror = () => { URL.revokeObjectURL(u); rej(new Error('image load failed')); };
+    img.src = u;
+  });
+}
+
+/* ---- YouTube URL → 埋め込みID ---- */
+function ytId(url) {
+  const m = String(url || '').match(/(?:youtu\.be\/|v=|\/embed\/|\/shorts\/)([\w-]{11})/);
+  return m ? m[1] : null;
+}
+/* ============================================================
+   画面遷移（一元管理）
+============================================================ */
+const state = {
+  screen: 'home',
+  dishId: null,
+  page: 0,           // 0 = 概要ページ, 1〜 = ステップ
+  category: 'すべて',
+  search: '',
+  editDishId: null,
+  editStepId: null,
+  prevScreen: 'home',
+};
+
+function setHeader(title, sub, back, edit) {
+  $('header-title').textContent = title;
+  const s = $('header-sub');
+  if (sub) { s.textContent = sub; s.style.display = 'block'; } else { s.style.display = 'none'; }
+  $('btn-back').classList.toggle('visible', !!back);
+  $('badge-edit').classList.toggle('visible', !!edit);
+}
+
+function showScreen(name) {
+  document.querySelectorAll('.screen').forEach(el => el.classList.remove('active'));
+  $('screen-' + name).classList.add('active');
+  state.screen = name;
+  const dish = state.dishId ? findDish(state.dishId) : null;
+  const eDish = state.editDishId ? findDish(state.editDishId) : null;
+  switch (name) {
+    case 'home':      setHeader('虎龍 調理マニュアル', '', false, false); break;
+    case 'dish':      setHeader(dish ? dish.name : '', dish ? dish.category : '', true, false); break;
+    case 'quickref':  setHeader('⚡ 早見表', '期限・注意点まとめ', true, false); break;
+    case 'admin':     setHeader('管理メニュー', '', true, true); break;
+    case 'edit-dish': setHeader(eDish ? eDish.name : '料理の編集', '料理の編集', true, true); break;
+    case 'edit-step': setHeader('ステップの編集', eDish ? eDish.name : '', true, true); break;
+    case 'setup':     setHeader('iPad 設定ガイド', '', true, true); break;
+  }
+}
+
+function goBack() {
+  switch (state.screen) {
+    case 'dish': case 'quickref':
+      state.dishId = null; renderHome(); showScreen('home'); break;
+    case 'admin':
+      renderHome(); showScreen('home'); break;
+    case 'edit-dish':
+      renderAdmin(); showScreen('admin'); break;
+    case 'edit-step':
+      renderEditDish(); showScreen('edit-dish'); break;
+    case 'setup':
+      showScreen('admin'); break;
+    default:
+      showScreen('home');
+  }
+}
+
+const findDish = id => DATA.dishes.find(d => d.id === id);
+
+/* ============================================================
+   ホーム画面
+============================================================ */
+function categories() {
+  const set = [];
+  DATA.dishes.forEach(d => { if (!set.includes(d.category)) set.push(d.category); });
+  return set;
+}
+
+async function renderHome() {
+  // タブ
+  const cats = ['すべて', ...categories()];
+  if (!cats.includes(state.category)) state.category = 'すべて';
+  $('tabs').innerHTML = cats.map(c =>
+    `<button class="tab ${c === state.category ? 'active' : ''}" data-action="tab" data-cat="${esc(c)}">${esc(c)}</button>`
+  ).join('');
+
+  // カード
+  const q = state.search.trim();
+  const list = DATA.dishes.filter(d =>
+    (state.category === 'すべて' || d.category === state.category) &&
+    (!q || d.name.includes(q)));
+
+  $('dish-grid').innerHTML = list.map(d => {
+    return `
+      <div class="dish-card" data-action="open-dish" data-id="${esc(d.id)}">
+        <div class="dish-card-thumb" data-thumb="${esc(d.id)}">
+          <span>${esc(d.icon)}</span>
+          <div class="dish-card-badge">${d.steps.length}ステップ</div>
+        </div>
+        <div class="dish-card-body">
+          <div class="dish-card-cat">${esc(d.category)}</div>
+          <div class="dish-card-name">${esc(d.name)}</div>
+        </div>
+      </div>`;
+  }).join('') || `<div class="ov-empty" style="grid-column:1/-1">該当する料理がありません</div>`;
+
+  // サムネ写真（完成写真 → なければステップ写真）
+  for (const d of list) {
+    const pid = d.finishedPhotoId || (d.steps.find(s => s.photoId) || {}).photoId;
+    if (!pid) continue;
+    const u = await mediaURL(pid);
+    const el = document.querySelector(`[data-thumb="${d.id}"]`);
+    if (u && el) { el.style.backgroundImage = `url(${u})`; el.querySelector('span').style.display = 'none'; }
+  }
+}
+
+/* ============================================================
+   料理ビュー（概要ページ + ステップページ）
+============================================================ */
+function openDish(id) {
+  state.dishId = id;
+  state.page = 0;
+  buildPages();
+  showScreen('dish');
+  updatePagePos(false);
+  updateNav();
+}
+
+function pageCount() {
+  const d = findDish(state.dishId);
+  return d ? d.steps.length + 1 : 0;
+}
+
+function buildPages() {
+  const d = findDish(state.dishId);
+  if (!d) return;
+
+  // ---- 概要ページ ----
+  const ingHtml = d.ingredients.length
+    ? `<table class="ov-table">${d.ingredients.map(i =>
+        `<tr><td>${esc(i.name)}</td><td class="amt">${esc(i.amount)}</td></tr>`).join('')}</table>`
+    : `<div class="ov-empty">材料・分量は未登録です（編集モードで入力できます）</div>`;
+
+  const finishedHtml = d.finishedPhotoId
+    ? `<div class="step-photo has-img" data-photo="${esc(d.finishedPhotoId)}"></div>`
+    : `<div class="step-photo">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+        <div class="step-photo-label">完成写真をここに追加（編集モード）</div>
+      </div>`;
+
+  const overview = `
+    <div class="page">
+      <div class="step-num">${esc(d.category)}</div>
+      <div class="step-title">${esc(d.name)}</div>
+      ${finishedHtml}
+      ${d.quickRef ? `<div class="ov-meta">⚡ ${esc(d.quickRef)}</div>` : ''}
+      <div class="ov-section">
+        <div class="ov-h">材料・分量</div>
+        ${ingHtml}
+      </div>
+      <div class="ov-section">
+        <div class="ov-h">ステップ一覧（タップで移動）</div>
+        ${d.steps.map((s, i) => `
+          <div class="toc-item" data-action="jump" data-page="${i + 1}">
+            <div class="toc-num">${i + 1}</div>
+            <div>${esc(s.title)}</div>
+          </div>`).join('')}
+      </div>
+    </div>`;
+
+  // ---- ステップページ ----
+  const stepsHtml = d.steps.map((s, i) => {
+    const photoHtml = s.photoId
+      ? `<div class="step-photo has-img" data-photo="${esc(s.photoId)}"></div>`
+      : `<div class="step-photo">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+          <div class="step-photo-label">写真をここに追加（編集モード）</div>
+        </div>`;
+
+    let videoHtml = '';
+    if (s.video.type === 'youtube' && ytId(s.video.url)) {
+      videoHtml = `<div class="step-video"><iframe src="https://www.youtube-nocookie.com/embed/${ytId(s.video.url)}" allowfullscreen></iframe></div>
+        <div class="video-note">※ YouTube動画の再生にはインターネット接続が必要です</div>`;
+    } else if (s.video.type === 'local' && s.video.mediaId) {
+      videoHtml = `<div class="step-video"><video controls playsinline preload="metadata" data-video="${esc(s.video.mediaId)}"></video></div><div class="video-note"></div>`;
+    } else if (s.videoPlanned) {
+      videoHtml = `<div class="step-video placeholder">
+          <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+          <div class="step-photo-label">動画をここに追加（編集モード）</div>
+        </div><div class="video-note"></div>`;
+    }
+
+    const tipHtml = s.tip ? `
+      <div class="step-tip ${s.tip.type}">
+        <div class="step-tip-label">${s.tip.type === 'warn' ? '⚠ 注意' : '💡 ポイント'}</div>
+        <div class="step-tip-text">${esc(s.tip.text)}</div>
+      </div>` : '';
+
+    return `
+      <div class="page">
+        <div class="step-num">STEP ${i + 1} / ${d.steps.length}</div>
+        <div class="step-title">${esc(s.title)}</div>
+        ${photoHtml}
+        ${videoHtml}
+        <div class="step-instruction">${esc(s.instruction)}</div>
+        ${tipHtml}
+      </div>`;
+  }).join('');
+
+  $('pages-inner').innerHTML = overview + stepsHtml;
+
+  // ドット
+  $('dots').innerHTML = Array.from({ length: pageCount() }, (_, i) =>
+    `<div class="dot ${i === state.page ? 'active' : ''}" data-action="jump" data-page="${i}"></div>`).join('');
+
+  // 非同期メディア読み込み
+  document.querySelectorAll('#pages-inner [data-photo]').forEach(async el => {
+    const u = await mediaURL(el.dataset.photo);
+    if (u) el.innerHTML = `<img src="${u}" alt="">`;
+  });
+  document.querySelectorAll('#pages-inner video[data-video]').forEach(async el => {
+    const u = await mediaURL(el.dataset.video);
+    if (u) el.src = u;
+  });
+}
+
+function updatePagePos(animate) {
+  const inner = $('pages-inner');
+  inner.style.transition = animate === false ? 'none' : 'transform 0.32s cubic-bezier(0.25,0.46,0.45,0.94)';
+  inner.style.transform = `translateX(-${state.page * 100}%)`;
+  document.querySelectorAll('#dots .dot').forEach((el, i) =>
+    el.classList.toggle('active', i === state.page));
+}
+
+function updateNav() {
+  const last = pageCount() - 1;
+  const prev = $('nav-prev'), next = $('nav-next');
+  prev.disabled = state.page === 0;
+  if (state.page === 0) { next.textContent = 'はじめる →'; next.classList.remove('finish'); }
+  else if (state.page === last) { next.textContent = '✓ 完了（ホームへ）'; next.classList.add('finish'); }
+  else { next.textContent = '次へ →'; next.classList.remove('finish'); }
+}
+
+function gotoPage(p, animate) {
+  const last = pageCount() - 1;
+  state.page = Math.max(0, Math.min(last, p));
+  updatePagePos(animate);
+  updateNav();
+}
+
+/* ---- スワイプ（補助操作として維持） ---- */
+(() => {
+  const track = $('pages-track');
+  let x0 = 0, y0 = 0, dragging = false;
+  track.addEventListener('touchstart', e => {
+    x0 = e.touches[0].clientX; y0 = e.touches[0].clientY; dragging = false;
+  }, { passive: true });
+  track.addEventListener('touchmove', e => {
+    if (!dragging) {
+      const dx = Math.abs(e.touches[0].clientX - x0);
+      const dy = Math.abs(e.touches[0].clientY - y0);
+      if (dx > dy && dx > 8) dragging = true;
+    }
+  }, { passive: true });
+  track.addEventListener('touchend', e => {
+    if (!dragging || state.screen !== 'dish') return;
+    const dx = e.changedTouches[0].clientX - x0;
+    if (Math.abs(dx) < 45) return;
+    gotoPage(state.page + (dx < 0 ? 1 : -1), true);
+  }, { passive: true });
+})();
+
+/* ============================================================
+   早見表
+============================================================ */
+function renderQuickRef() {
+  $('quickref-body').innerHTML = DATA.dishes.map(d => {
+    const warns = [];
+    d.steps.forEach(s => { if (s.tip && s.tip.type === 'warn') warns.push(s.tip.text); });
+    if (!d.quickRef && !warns.length) return '';
+    return `
+      <div class="qr-card">
+        <div class="qr-name">${esc(d.icon)} ${esc(d.name)}</div>
+        ${d.quickRef ? `<div class="qr-memo">⚡ ${esc(d.quickRef)}</div>` : ''}
+        ${warns.map(w => `<div class="qr-warn">${esc(w)}</div>`).join('')}
+      </div>`;
+  }).join('') || '<div class="ov-empty">表示できる項目がありません</div>';
+}
+
+/* ============================================================
+   パスコード（モーダル）
+============================================================ */
+function pinModal(opts) {
+  return new Promise(res => {
+    const ov = $('modal-overlay'), inp = $('modal-input'), err = $('modal-err');
+    $('modal-title').textContent = opts.title;
+    $('modal-msg').textContent = opts.msg || '';
+    err.style.display = 'none';
+    inp.value = '';
+    inp.style.display = opts.noInput ? 'none' : 'block';
+    $('modal-ok').textContent = opts.okLabel || 'OK';
+    ov.classList.add('visible');
+    if (!opts.noInput) setTimeout(() => inp.focus(), 60);
+
+    const done = v => {
+      ov.classList.remove('visible');
+      $('modal-ok').onclick = $('modal-cancel').onclick = null;
+      res(v);
+    };
+    $('modal-cancel').onclick = () => done(null);
+    $('modal-ok').onclick = () => {
+      if (opts.noInput) return done(true);
+      const v = inp.value.trim();
+      if (!/^\d{4}$/.test(v)) {
+        err.textContent = '4桁の数字を入力してください';
+        err.style.display = 'block';
+        return;
+      }
+      done(v);
+    };
+  });
+}
+
+async function requirePin(title, msg) {
+  const stored = localStorage.getItem(LS_PIN);
+  if (!stored) {
+    // 初回：パスコード設定
+    const p1 = await pinModal({ title: 'パスコードの設定（初回）', msg: 'オーナー用の4桁パスコードを決めて入力してください' });
+    if (!p1) return false;
+    const p2 = await pinModal({ title: 'パスコードの確認', msg: 'もう一度同じ4桁を入力してください' });
+    if (!p2) return false;
+    if (p1 !== p2) { showToast('一致しません。最初からやり直してください'); return false; }
+    localStorage.setItem(LS_PIN, pinHash(p1));
+    showToast('パスコードを設定しました');
+    return true;
+  }
+  for (let i = 0; i < 3; i++) {
+    const p = await pinModal({ title, msg: msg || 'パスコードを入力してください' });
+    if (p === null) return false;
+    if (pinHash(p) === stored) return true;
+    showToast('パスコードが違います');
+  }
+  return false;
+}
+
+async function changePin() {
+  const ok = await requirePin('現在のパスコード', '現在の4桁を入力してください');
+  if (!ok) return;
+  const p1 = await pinModal({ title: '新しいパスコード', msg: '新しい4桁を入力してください' });
+  if (!p1) return;
+  const p2 = await pinModal({ title: '新しいパスコードの確認', msg: 'もう一度入力してください' });
+  if (!p2 || p1 !== p2) { showToast('一致しませんでした'); return; }
+  localStorage.setItem(LS_PIN, pinHash(p1));
+  showToast('パスコードを変更しました');
+}
+
+/* ---- 隠しジェスチャー：タイトル5回タップ → パスコード → 管理 ---- */
+let tapCount = 0, tapTimer = null;
+$('header-title').addEventListener('click', async () => {
+  if (state.screen !== 'home') return;
+  tapCount++;
+  clearTimeout(tapTimer);
+  tapTimer = setTimeout(() => { tapCount = 0; }, 1500);
+  if (tapCount >= 5) {
+    tapCount = 0;
+    const ok = await requirePin('管理メニュー', 'オーナー用パスコードを入力してください');
+    if (ok) { renderAdmin(); showScreen('admin'); }
+  }
+});
+/* ============================================================
+   管理：料理一覧
+============================================================ */
+function renderAdmin() {
+  $('admin-dish-list').innerHTML = DATA.dishes.map((d, i) => `
+    <div class="row">
+      <div class="row-main" data-action="dish-edit" data-id="${esc(d.id)}">
+        <div class="row-name">${esc(d.icon)} ${esc(d.name)}</div>
+        <div class="row-sub">${esc(d.category)}・${d.steps.length}ステップ</div>
+      </div>
+      <button class="icon-btn" data-action="dish-up" data-id="${esc(d.id)}" ${i === 0 ? 'disabled' : ''}>▲</button>
+      <button class="icon-btn" data-action="dish-down" data-id="${esc(d.id)}" ${i === DATA.dishes.length - 1 ? 'disabled' : ''}>▼</button>
+      <button class="icon-btn danger" data-action="dish-del" data-id="${esc(d.id)}">🗑</button>
+    </div>`).join('');
+}
+
+function moveItem(arr, id, dir) {
+  const i = arr.findIndex(x => x.id === id);
+  const j = i + dir;
+  if (i < 0 || j < 0 || j >= arr.length) return;
+  [arr[i], arr[j]] = [arr[j], arr[i]];
+  saveData();
+}
+
+async function deleteDishMedia(d) {
+  await mediaDel(d.finishedPhotoId); dropURL(d.finishedPhotoId);
+  for (const s of d.steps) {
+    await mediaDel(s.photoId); dropURL(s.photoId);
+    await mediaDel(s.video.mediaId); dropURL(s.video.mediaId);
+  }
+}
+
+/* ============================================================
+   管理：料理の編集
+============================================================ */
+function renderEditDish() {
+  const d = findDish(state.editDishId);
+  if (!d) { goBack(); return; }
+  setHeader(d.name, '料理の編集', true, true);
+
+  $('edit-dish-body').innerHTML = `
+    <div class="admin-h">基本情報</div>
+    <div class="field"><label>料理名</label><input type="text" data-bind="dish.name" value="${esc(d.name)}"></div>
+    <div class="field"><label>カテゴリ</label><input type="text" data-bind="dish.category" value="${esc(d.category)}"></div>
+    <div class="field"><label>アイコン（絵文字1つ）</label><input type="text" data-bind="dish.icon" value="${esc(d.icon)}"></div>
+    <div class="field"><label>早見メモ（期限・最重要の注意など / 早見表に表示）</label><input type="text" data-bind="dish.quickRef" value="${esc(d.quickRef)}"></div>
+
+    <div class="admin-h">完成写真（料理を開いた最初のページに表示）</div>
+    <div class="edit-photo-preview" id="edit-dish-photo-preview"></div>
+    <button class="btn secondary" data-action="dish-photo-pick">📷 ${d.finishedPhotoId ? '完成写真を差し替える' : '完成写真を選ぶ（カメラロール）'}</button>
+    ${d.finishedPhotoId ? `<button class="btn danger-outline" data-action="dish-photo-del">完成写真を削除</button>` : ''}
+
+    <div class="admin-h">材料・分量</div>
+    <div id="ing-list">${d.ingredients.map((ing, i) => `
+      <div class="ing-row">
+        <input type="text" placeholder="材料名" data-bind="ing.name" data-idx="${i}" value="${esc(ing.name)}">
+        <input type="text" class="amt" placeholder="分量" data-bind="ing.amount" data-idx="${i}" value="${esc(ing.amount)}">
+        <button class="icon-btn danger" data-action="ing-del" data-idx="${i}">✕</button>
+      </div>`).join('')}</div>
+    <button class="btn secondary" data-action="ing-add">＋ 材料を追加</button>
+
+    <div class="admin-h">ステップ（${d.steps.length}）</div>
+    ${d.steps.map((s, i) => `
+      <div class="row">
+        <div class="row-main" data-action="step-edit" data-id="${esc(s.id)}">
+          <div class="row-name">${i + 1}. ${esc(s.title || '（タイトル未入力）')}</div>
+          <div class="row-sub">${s.photoId ? '📷写真あり ' : ''}${s.video.type !== 'none' ? '🎬動画あり ' : ''}${s.tip ? (s.tip.type === 'warn' ? '⚠注意 ' : '💡ポイント ') : ''}</div>
+        </div>
+        <button class="icon-btn" data-action="step-up" data-id="${esc(s.id)}" ${i === 0 ? 'disabled' : ''}>▲</button>
+        <button class="icon-btn" data-action="step-down" data-id="${esc(s.id)}" ${i === d.steps.length - 1 ? 'disabled' : ''}>▼</button>
+        <button class="icon-btn danger" data-action="step-del" data-id="${esc(s.id)}">🗑</button>
+      </div>`).join('')}
+    <button class="btn primary" data-action="step-add">＋ ステップを追加</button>`;
+
+  // 完成写真プレビュー
+  if (d.finishedPhotoId) {
+    mediaURL(d.finishedPhotoId).then(u => {
+      if (u && $('edit-dish-photo-preview')) $('edit-dish-photo-preview').innerHTML = `<img src="${u}" alt="">`;
+    });
+  }
+}
+
+/* ============================================================
+   管理：ステップの編集
+============================================================ */
+function findEditStep() {
+  const d = findDish(state.editDishId);
+  return d ? { d, s: d.steps.find(x => x.id === state.editStepId) } : { d: null, s: null };
+}
+
+async function renderEditStep() {
+  const { d, s } = findEditStep();
+  if (!s) { goBack(); return; }
+  const idx = d.steps.indexOf(s) + 1;
+  setHeader(`STEP ${idx} の編集`, d.name, true, true);
+
+  const tipType = s.tip ? s.tip.type : 'none';
+  const vt = s.video.type;
+
+  $('edit-step-body').innerHTML = `
+    <div class="field"><label>ステップのタイトル</label><input type="text" data-bind="step.title" value="${esc(s.title)}"></div>
+    <div class="field"><label>手順の説明</label><textarea data-bind="step.instruction">${esc(s.instruction)}</textarea></div>
+
+    <div class="admin-h">アドバイス枠</div>
+    <div class="field"><label>種類</label>
+      <select data-bind="tip.type">
+        <option value="none" ${tipType === 'none' ? 'selected' : ''}>なし</option>
+        <option value="point" ${tipType === 'point' ? 'selected' : ''}>💡 ポイント（黄）</option>
+        <option value="warn" ${tipType === 'warn' ? 'selected' : ''}>⚠ 注意（赤）</option>
+      </select>
+    </div>
+    ${tipType !== 'none' ? `<div class="field"><label>アドバイスの内容</label><textarea data-bind="tip.text">${esc(s.tip.text)}</textarea></div>` : ''}
+
+    <div class="admin-h">写真</div>
+    <div class="edit-photo-preview" id="edit-photo-preview"></div>
+    <button class="btn secondary" data-action="photo-pick">📷 ${s.photoId ? '写真を差し替える' : '写真を選ぶ（カメラロール）'}</button>
+    ${s.photoId ? `<button class="btn danger-outline" data-action="photo-del">写真を削除</button>` : ''}
+
+    <div class="admin-h">動画</div>
+    <div class="field"><label>動画の種類</label>
+      <select data-bind="video.type">
+        <option value="none" ${vt === 'none' ? 'selected' : ''}>なし</option>
+        <option value="youtube" ${vt === 'youtube' ? 'selected' : ''}>YouTubeリンク（再生にネット接続が必要）</option>
+        <option value="local" ${vt === 'local' ? 'selected' : ''}>iPadの動画（オフラインでも再生可）</option>
+      </select>
+    </div>
+    ${vt === 'youtube' ? `
+      <div class="field"><label>YouTubeのURL</label><input type="url" data-bind="video.url" value="${esc(s.video.url)}" placeholder="https://youtu.be/...">
+      ${s.video.url && !ytId(s.video.url) ? `<div class="modal-err" style="display:block;margin-top:6px">URLからYouTube動画を認識できません</div>` : ''}</div>` : ''}
+    ${vt === 'local' ? `
+      <button class="btn secondary" data-action="video-pick">🎬 ${s.video.mediaId ? '動画を差し替える' : '動画を選ぶ（カメラロール）'}</button>
+      ${s.video.mediaId ? `<button class="btn danger-outline" data-action="video-del">動画を削除</button>` : ''}
+      <div class="hint-note">短い動画（15〜30秒・720p程度）を推奨。長い動画はiPadの容量を圧迫します。</div>` : ''}
+
+    <button class="btn primary" data-action="back" style="margin-top:20px">← ステップ一覧に戻る</button>`;
+
+  // 写真プレビュー
+  if (s.photoId) {
+    const u = await mediaURL(s.photoId);
+    if (u) $('edit-photo-preview').innerHTML = `<img src="${u}" alt="">`;
+  }
+}
+
+/* ============================================================
+   バックアップ（書き出し / 復元）
+============================================================ */
+function blobToB64(blob) {
+  return new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload = () => res(r.result);
+    r.onerror = rej;
+    r.readAsDataURL(blob);
+  });
+}
+async function b64ToBlob(dataUrl) {
+  const r = await fetch(dataUrl);
+  return r.blob();
+}
+
+async function exportBackup() {
+  showToast('バックアップを作成中…');
+  try {
+    const keys = await mediaAllKeys();
+    const media = [];
+    for (const k of keys) {
+      const blob = await mediaGet(k);
+      if (blob) media.push({ id: k, b64: await blobToB64(blob) });
+    }
+    const payload = {
+      app: 'kotatsu-manual', version: 2,
+      exportedAt: new Date().toISOString(),
+      data: DATA, media,
+    };
+    const json = JSON.stringify(payload);
+    const date = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+    const fname = `虎龍マニュアル_バックアップ_${date}.json`;
+    const file = new File([json], fname, { type: 'application/json' });
+
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      await navigator.share({ files: [file], title: fname });
+    } else {
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(new Blob([json], { type: 'application/json' }));
+      a.download = fname;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+    }
+    showToast('📤 バックアップを書き出しました');
+  } catch (e) {
+    if (e && e.name === 'AbortError') return;
+    alert('バックアップの書き出しに失敗しました：' + e.message);
+  }
+}
+
+/* ---- 完成版HTML書き出し（データ埋め込み・配布用） ---- */
+function buildFinalHtml(payload) {
+  const lit = JSON.stringify(payload).replace(/<\//g, '<\\/');
+  const i1 = SOURCE_HTML.indexOf('/*__E1__*/');
+  const i2 = SOURCE_HTML.indexOf('/*__E2__*/');
+  if (i1 < 0 || i2 < 0) return null;
+  return SOURCE_HTML.slice(0, i1 + 10) + ' ' + lit + ' ' + SOURCE_HTML.slice(i2);
+}
+
+async function exportFinal() {
+  showToast('完成版を作成中…');
+  try {
+    const keys = await mediaAllKeys();
+    const media = [];
+    let total = 0;
+    for (const k of keys) {
+      const blob = await mediaGet(k);
+      if (blob) { total += blob.size; media.push({ id: k, b64: await blobToB64(blob) }); }
+    }
+    if (total > 50 * 1024 * 1024 &&
+        !confirm('写真・動画の合計が50MBを超えています。ファイルが大きくなり、開くのが遅くなる可能性があります。続けますか？（動画をYouTube方式にすると軽くなります）')) return;
+
+    const payload = { exportedAt: new Date().toISOString(), data: DATA, media };
+    const out = buildFinalHtml(payload);
+    if (!out) { alert('書き出しに失敗しました（テンプレートが見つかりません）'); return; }
+
+    const date = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+    const fname = `虎龍マニュアル_完成版_${date}.html`;
+    const file = new File([out], fname, { type: 'text/html' });
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      await navigator.share({ files: [file], title: fname });
+    } else {
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(new Blob([out], { type: 'text/html' }));
+      a.download = fname;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+    }
+    showToast('📦 完成版を書き出しました');
+  } catch (e) {
+    if (e && e.name === 'AbortError') return;
+    alert('完成版の書き出しに失敗しました：' + e.message);
+  }
+}
+
+/* ---- 完成版起動時：埋め込みデータを取り込む ---- */
+async function applyEmbedded() {
+  if (!EMBEDDED || !EMBEDDED.data) return;
+  const seen = localStorage.getItem('kotatsu_embedded_version');
+  if (seen === EMBEDDED.exportedAt) return; // この版は取り込み済み
+  await mediaClear();
+  urlCache.forEach(u => URL.revokeObjectURL(u));
+  urlCache.clear();
+  for (const m of (EMBEDDED.media || [])) {
+    await mediaPut(m.id, await b64ToBlob(m.b64));
+  }
+  localStorage.setItem(LS_DATA, JSON.stringify(EMBEDDED.data));
+  localStorage.setItem('kotatsu_embedded_version', EMBEDDED.exportedAt);
+}
+
+async function importBackup(file) {
+  try {
+    const text = await file.text();
+    const p = JSON.parse(text);
+    if (p.app !== 'kotatsu-manual' || !p.data) throw new Error('バックアップファイルの形式が違います');
+    if (!confirm('現在のデータをすべて置き換えて復元します。よろしいですか？')) return;
+
+    await mediaClear();
+    urlCache.forEach(u => URL.revokeObjectURL(u));
+    urlCache.clear();
+    for (const m of (p.media || [])) {
+      await mediaPut(m.id, await b64ToBlob(m.b64));
+    }
+    DATA = normalize(p.data) || seedData();
+    saveData(true);
+    renderHome(); showScreen('home');
+    showToast('📥 バックアップから復元しました');
+  } catch (e) {
+    alert('復元に失敗しました：' + e.message);
+  }
+}
+
+async function resetAll() {
+  if (!confirm('すべての料理・ステップ・写真を初期状態に戻します。よろしいですか？')) return;
+  if (!confirm('本当によろしいですか？ この操作は取り消せません。（バックアップを書き出してからの実行を推奨します）')) return;
+  await mediaClear();
+  urlCache.forEach(u => URL.revokeObjectURL(u));
+  urlCache.clear();
+  DATA = seedData();
+  saveData(true);
+  renderAdmin();
+  showToast('初期状態に戻しました');
+}
+
+/* ============================================================
+   イベント（クリック：デリゲーション一元化）
+============================================================ */
+document.addEventListener('click', async e => {
+  const t = e.target.closest('[data-action]');
+  if (!t) return;
+  const act = t.dataset.action;
+  const id = t.dataset.id;
+  const d = state.editDishId ? findDish(state.editDishId) : null;
+
+  switch (act) {
+    /* ---- 閲覧側 ---- */
+    case 'back': goBack(); break;
+    case 'tab': state.category = t.dataset.cat; renderHome(); break;
+    case 'open-dish': openDish(id); break;
+    case 'quickref': renderQuickRef(); showScreen('quickref'); break;
+    case 'jump': gotoPage(parseInt(t.dataset.page, 10), true); break;
+    case 'page-prev': gotoPage(state.page - 1, true); break;
+    case 'page-next':
+      if (state.page === pageCount() - 1) goBack();
+      else gotoPage(state.page + 1, true);
+      break;
+
+    /* ---- 管理：料理 ---- */
+    case 'dish-add': {
+      const nd = { id: uid(), name: '新しい料理', category: '未分類', icon: '🍽', quickRef: '', ingredients: [], steps: [] };
+      DATA.dishes.push(nd);
+      saveData();
+      state.editDishId = nd.id;
+      renderEditDish(); showScreen('edit-dish');
+      break;
+    }
+    case 'dish-edit': state.editDishId = id; renderEditDish(); showScreen('edit-dish'); break;
+    case 'dish-up': moveItem(DATA.dishes, id, -1); renderAdmin(); break;
+    case 'dish-down': moveItem(DATA.dishes, id, 1); renderAdmin(); break;
+    case 'dish-del': {
+      const dd = findDish(id);
+      if (!dd) break;
+      if (!confirm(`「${dd.name}」を削除します。よろしいですか？（写真・動画も削除されます）`)) break;
+      await deleteDishMedia(dd);
+      DATA.dishes = DATA.dishes.filter(x => x.id !== id);
+      saveData();
+      renderAdmin();
+      break;
+    }
+
+    /* ---- 管理：材料 ---- */
+    case 'ing-add':
+      if (!d) break;
+      d.ingredients.push({ name: '', amount: '' });
+      saveData(); renderEditDish();
+      break;
+    case 'ing-del':
+      if (!d) break;
+      d.ingredients.splice(parseInt(t.dataset.idx, 10), 1);
+      saveData(); renderEditDish();
+      break;
+
+    /* ---- 管理：ステップ ---- */
+    case 'step-add': {
+      if (!d) break;
+      const ns = { id: uid(), title: '', instruction: '', tip: null, photoId: null,
+                   video: { type: 'none', url: '', mediaId: null }, videoPlanned: false };
+      d.steps.push(ns);
+      saveData();
+      state.editStepId = ns.id;
+      renderEditStep(); showScreen('edit-step');
+      break;
+    }
+    case 'step-edit': state.editStepId = id; renderEditStep(); showScreen('edit-step'); break;
+    case 'step-up': if (d) { moveItem(d.steps, id, -1); renderEditDish(); } break;
+    case 'step-down': if (d) { moveItem(d.steps, id, 1); renderEditDish(); } break;
+    case 'step-del': {
+      if (!d) break;
+      const ds = d.steps.find(x => x.id === id);
+      if (!ds) break;
+      if (!confirm(`ステップ「${ds.title || '（無題）'}」を削除します。よろしいですか？`)) break;
+      await mediaDel(ds.photoId); dropURL(ds.photoId);
+      await mediaDel(ds.video.mediaId); dropURL(ds.video.mediaId);
+      d.steps = d.steps.filter(x => x.id !== id);
+      saveData(); renderEditDish();
+      break;
+    }
+
+    /* ---- 管理：写真・動画 ---- */
+    case 'photo-pick': photoTarget = 'step'; $('file-photo').click(); break;
+    case 'dish-photo-pick': photoTarget = 'dish'; $('file-photo').click(); break;
+    case 'dish-photo-del': {
+      if (!d) break;
+      await mediaDel(d.finishedPhotoId); dropURL(d.finishedPhotoId);
+      d.finishedPhotoId = null;
+      saveData(); renderEditDish();
+      break;
+    }
+    case 'photo-del': {
+      const { s } = findEditStep();
+      if (!s) break;
+      await mediaDel(s.photoId); dropURL(s.photoId);
+      s.photoId = null;
+      saveData(); renderEditStep();
+      break;
+    }
+    case 'video-pick': $('file-video').click(); break;
+    case 'video-del': {
+      const { s } = findEditStep();
+      if (!s) break;
+      await mediaDel(s.video.mediaId); dropURL(s.video.mediaId);
+      s.video.mediaId = null;
+      saveData(); renderEditStep();
+      break;
+    }
+
+    /* ---- 管理：その他 ---- */
+    case 'export-final': exportFinal(); break;
+    case 'backup-export': exportBackup(); break;
+    case 'backup-import': $('file-import').click(); break;
+    case 'pin-change': changePin(); break;
+    case 'setup-guide': showScreen('setup'); break;
+    case 'data-reset': resetAll(); break;
+  }
+});
+
+/* ============================================================
+   イベント（入力：自動保存バインディング）
+============================================================ */
+document.addEventListener('input', e => {
+  const t = e.target;
+  const bind = t.dataset && t.dataset.bind;
+  if (!bind) return;
+  const d = state.editDishId ? findDish(state.editDishId) : null;
+  const { s } = findEditStep();
+
+  switch (bind) {
+    case 'dish.name': if (d) { d.name = t.value; setHeader(d.name || '料理の編集', '料理の編集', true, true); } break;
+    case 'dish.category': if (d) d.category = t.value; break;
+    case 'dish.icon': if (d) d.icon = t.value; break;
+    case 'dish.quickRef': if (d) d.quickRef = t.value; break;
+    case 'ing.name': if (d) { const i = parseInt(t.dataset.idx, 10); if (d.ingredients[i]) d.ingredients[i].name = t.value; } break;
+    case 'ing.amount': if (d) { const i = parseInt(t.dataset.idx, 10); if (d.ingredients[i]) d.ingredients[i].amount = t.value; } break;
+    case 'step.title': if (s) s.title = t.value; break;
+    case 'step.instruction': if (s) s.instruction = t.value; break;
+    case 'tip.text': if (s && s.tip) s.tip.text = t.value; break;
+    case 'video.url': if (s) s.video.url = t.value; break;
+    default: return;
+  }
+  saveData();
+});
+
+// select は change で（tip種類・動画種類は画面を作り直す）
+document.addEventListener('change', e => {
+  const t = e.target;
+  const bind = t.dataset && t.dataset.bind;
+  if (!bind) return;
+  const { s } = findEditStep();
+  if (!s) return;
+  if (bind === 'tip.type') {
+    s.tip = t.value === 'none' ? null : { type: t.value, text: (s.tip && s.tip.text) || '' };
+    saveData(); renderEditStep();
+  } else if (bind === 'video.type') {
+    s.video.type = t.value;
+    if (t.value !== 'local' && s.video.mediaId) { mediaDel(s.video.mediaId); dropURL(s.video.mediaId); s.video.mediaId = null; }
+    saveData(); renderEditStep();
+  }
+});
+
+/* ---- ファイル選択ハンドラ ---- */
+let photoTarget = 'step'; // 'step' = ステップ写真 / 'dish' = 完成写真
+
+$('file-photo').addEventListener('change', async e => {
+  const file = e.target.files[0];
+  e.target.value = '';
+  if (!file) return;
+  try {
+    showToast('写真を圧縮中…');
+    const blob = await compressImage(file, 1200, 0.72);
+    const id = 'p_' + uid();
+    if (photoTarget === 'dish') {
+      const d = state.editDishId ? findDish(state.editDishId) : null;
+      if (!d) return;
+      await mediaDel(d.finishedPhotoId); dropURL(d.finishedPhotoId);
+      await mediaPut(id, blob);
+      d.finishedPhotoId = id;
+      saveData(); renderEditDish();
+    } else {
+      const { s } = findEditStep();
+      if (!s) return;
+      await mediaDel(s.photoId); dropURL(s.photoId);
+      await mediaPut(id, blob);
+      s.photoId = id;
+      saveData(); renderEditStep();
+    }
+    showToast('📷 写真を保存しました');
+  } catch (err) {
+    alert('写真の保存に失敗しました：' + err.message);
+  }
+});
+
+$('file-video').addEventListener('change', async e => {
+  const file = e.target.files[0];
+  e.target.value = '';
+  if (!file) return;
+  const { s } = findEditStep();
+  if (!s) return;
+  if (file.size > 80 * 1024 * 1024) {
+    alert('動画が大きすぎます（80MBまで）。短く切るか、画質を下げて書き出してから選んでください。');
+    return;
+  }
+  try {
+    await mediaDel(s.video.mediaId); dropURL(s.video.mediaId);
+    const id = 'v_' + uid();
+    await mediaPut(id, file);
+    s.video.type = 'local';
+    s.video.mediaId = id;
+    saveData(); renderEditStep();
+    showToast('🎬 動画を保存しました');
+  } catch (err) {
+    alert('動画の保存に失敗しました：' + err.message);
+  }
+});
+
+$('file-import').addEventListener('change', e => {
+  const file = e.target.files[0];
+  e.target.value = '';
+  if (file) importBackup(file);
+});
+
+/* ---- 検索 ---- */
+$('search').addEventListener('input', e => {
+  state.search = e.target.value;
+  renderHome();
+});
+
+/* ============================================================
+   初期化
+============================================================ */
+(async function init() {
+  try { await applyEmbedded(); } catch (e) { /* 埋め込みなし・取り込み失敗時は通常起動 */ }
+  loadData();
+  renderHome();
+  showScreen('home');
+
+  // Service Worker（ホスティング時のみ有効：オフライン起動＋自動更新）
+  if ('serviceWorker' in navigator && location.protocol === 'https:') {
+    navigator.serviceWorker.register('./sw.js').catch(() => {});
+  }
+})();
+</script>
+</body>
+</html>
