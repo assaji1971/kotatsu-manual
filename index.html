@@ -1446,6 +1446,23 @@ async function b64ToBlob(dataUrl) {
   return r.blob();
 }
 
+// iPad/iPhoneのみ共有画面、Mac/PCは直接ダウンロード
+const IS_IOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+  (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+
+async function deliverFile(content, fname, mime) {
+  const file = new File([content], fname, { type: mime });
+  if (IS_IOS && navigator.canShare && navigator.canShare({ files: [file] })) {
+    await navigator.share({ files: [file], title: fname });
+  } else {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([content], { type: mime }));
+    a.download = fname;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+  }
+}
+
 async function exportBackup() {
   showToast('バックアップを作成中…');
   try {
@@ -1463,17 +1480,7 @@ async function exportBackup() {
     const json = JSON.stringify(payload);
     const date = new Date().toISOString().slice(0, 10).replace(/-/g, '');
     const fname = `虎龍マニュアル_バックアップ_${date}.json`;
-    const file = new File([json], fname, { type: 'application/json' });
-
-    if (navigator.canShare && navigator.canShare({ files: [file] })) {
-      await navigator.share({ files: [file], title: fname });
-    } else {
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(new Blob([json], { type: 'application/json' }));
-      a.download = fname;
-      document.body.appendChild(a); a.click(); a.remove();
-      setTimeout(() => URL.revokeObjectURL(a.href), 5000);
-    }
+    await deliverFile(json, fname, 'application/json');
     showToast('📤 バックアップを書き出しました');
   } catch (e) {
     if (e && e.name === 'AbortError') return;
@@ -1508,17 +1515,9 @@ async function exportFinal() {
     if (!out) { alert('書き出しに失敗しました（テンプレートが見つかりません）'); return; }
 
     const date = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-    const fname = `虎龍マニュアル_完成版_${date}.html`;
-    const file = new File([out], fname, { type: 'text/html' });
-    if (navigator.canShare && navigator.canShare({ files: [file] })) {
-      await navigator.share({ files: [file], title: fname });
-    } else {
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(new Blob([out], { type: 'text/html' }));
-      a.download = fname;
-      document.body.appendChild(a); a.click(); a.remove();
-      setTimeout(() => URL.revokeObjectURL(a.href), 5000);
-    }
+    // Mac/PCではGitHubにそのまま上げられるよう index.html という名前で保存
+    const fname = IS_IOS ? `虎龍マニュアル_完成版_${date}.html` : 'index.html';
+    await deliverFile(out, fname, 'text/html');
     showToast('📦 完成版を書き出しました');
   } catch (e) {
     if (e && e.name === 'AbortError') return;
